@@ -344,6 +344,7 @@ class StockholmIterator(AlignmentIterator):
         gs = {}
         gr = {}
         gf = {}
+        gc = {}
         passed_end_alignment = False
         while True:
             line = handle.readline()
@@ -389,7 +390,14 @@ class StockholmIterator(AlignmentIterator):
                 elif line[:5] == '#=GC ':
                     # Generic per-Column annotation, exactly 1 char per column
                     # Format: "#=GC <feature> <exactly 1 char per column>"
-                    pass
+                    feature, text = line[5:].strip().split(None, 1)
+                    # Each feature key could be used only once.
+                    if feature in gc:
+                        raise ValueError("Duplicate feature for #=GC label:\n" + line)
+                    else:
+                        gc[feature] = text
+                    # TODO - Should we check the length of text exactly matches the
+                    #       number of columns?
                 elif line[:5] == '#=GS ':
                     # Generic per-Sequence annotation, free text
                     # Format: "#=GS <seqname> <feature> <free text>"
@@ -455,11 +463,8 @@ class StockholmIterator(AlignmentIterator):
 
                 self._populate_meta_data(id, record)
                 records.append(record)
-            alignment = MultipleSeqAlignment(records, self.alphabet)
-
-            # TODO - Introduce an annotated alignment class?
-            # For now, store the annotation a new private property:
-            alignment._annotations = gr
+            alignment = MultipleSeqAlignment(records, self.alphabet,
+                    annotations={"GS": gs, "GR": gr, "GF": gf, "GC": gc})
 
             return alignment
         else:
